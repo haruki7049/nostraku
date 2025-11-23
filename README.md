@@ -21,16 +21,19 @@ You need to have the following installed:
 #### Installing libsecp256k1
 
 **On Debian/Ubuntu:**
+
 ```bash
 sudo apt-get install libsecp256k1-dev
 ```
 
 **On macOS with Homebrew:**
+
 ```bash
 brew install libsecp256k1
 ```
 
 **On NixOS (using flake):**
+
 ```bash
 nix develop
 ```
@@ -38,11 +41,13 @@ nix develop
 ### Installing nostraku
 
 Using zef:
+
 ```bash
 zef install nostraku
 ```
 
 Or from source:
+
 ```bash
 git clone https://github.com/haruki7049/nostraku
 cd nostraku
@@ -108,11 +113,13 @@ say $close-msg.to-json();
 ### Setting up the development environment
 
 Using Nix:
+
 ```bash
 nix develop
 ```
 
 Or manually install:
+
 - Raku/Rakudo
 - zef
 - libsecp256k1
