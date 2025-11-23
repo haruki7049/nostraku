@@ -6,7 +6,7 @@ use Net::Nostr::Types;
 
 has HexKey $.id is rw;
 has HexKey $.pubkey is required;
-has Int $.created_at is required = now.Int;
+has Timestamp $.created_at is required = now.Int;
 has Int $.kind is required;
 has Array $.tags is required = [];
 has Str $.content is required = "";
