@@ -1,0 +1,8 @@
+# Nix
+result
+result-*
+.direnv/
+
+# Raku-lang
+.precomp
+lib/.precomp
