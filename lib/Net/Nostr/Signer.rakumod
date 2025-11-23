@@ -164,7 +164,7 @@ haruki7049
 
 =head1 LICENSE
 
-Artistic-2.0
+MIT
 
 =end pod
 
