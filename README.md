@@ -8,15 +8,6 @@ A Nostr protocol implementation for Raku (Perl 6)
 
 Nostr (Notes and Other Stuff Transmitted by Relays) is a simple, open protocol for creating censorship-resistant social networks. This library helps you build Nostr-compatible applications in Raku.
 
-## Features
-
-- ✅ **Type-safe data structures** - Strong type validation for Nostr protocol entities
-- ✅ **Event creation and serialization** - Create and serialize Nostr events according to NIP-01
-- ✅ **Schnorr signatures** - Sign events using secp256k1 Schnorr signatures
-- ✅ **Protocol messages** - Build EVENT, REQ, and CLOSE messages for relay communication
-- ✅ **ID calculation and verification** - Calculate and verify event IDs
-- ✅ **Comprehensive documentation** - Full Pod6 documentation for all modules
-
 ## Installation
 
 ### Prerequisites
@@ -112,65 +103,6 @@ my $close-msg = Net::Nostr::Message.new-close("subscription-id");
 say $close-msg.to-json();
 ```
 
-## Modules
-
-### Net::Nostr::Types
-
-Type definitions for the Nostr protocol:
-- `HexKey` - 64-character hex string for keys and IDs
-- `HexSignature` - 128-character hex string for signatures
-- `Timestamp` - Unix timestamp
-- `Kind` - Event kind identifier
-- `Tag` - Single tag array
-- `Tags` - Array of tags
-
-### Net::Nostr::Event
-
-Represents a Nostr event with methods for:
-- Event ID calculation
-- Event serialization
-- ID verification
-- JSON conversion
-
-### Net::Nostr::Message
-
-Protocol message handling for:
-- EVENT messages (publishing events)
-- REQ messages (requesting events with filters)
-- CLOSE messages (closing subscriptions)
-
-### Net::Nostr::Signer
-
-Schnorr signature generation using secp256k1:
-- Sign events with private keys
-- Generate cryptographically secure signatures
-
-## Examples
-
-The `examples/` directory contains working examples:
-
-- `create-note.raku` - Create and sign a text note
-- `message-generation-demo.raku` - Demonstrate all message types
-
-Run an example:
-```bash
-raku examples/create-note.raku --content="My first note!"
-```
-
-## Documentation
-
-Full documentation is available in Pod6 format within each module. To view the documentation:
-
-```bash
-# For a specific module
-raku --doc lib/Net/Nostr/Event.rakumod
-
-# Generate HTML documentation
-raku --doc=HTML lib/Net/Nostr/Event.rakumod > Event.html
-```
-
-Or view online at [TODO: Add documentation URL when published].
-
 ## Development
 
 ### Setting up the development environment
@@ -197,26 +129,9 @@ zef test .
 nix fmt
 ```
 
-## Protocol Support
-
-This library currently implements:
-- ✅ NIP-01: Basic protocol flow, events, and messages
-- ✅ Event ID calculation (SHA256)
-- ✅ Schnorr signatures (secp256k1)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit pull requests or open issues.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## License
 
 This project is licensed under the Artistic-2.0 License - see the [LICENSE](LICENSE) file for details.
-
-## Author
-
-**haruki7049**
 
 ## Links
 
@@ -224,9 +139,3 @@ This project is licensed under the Artistic-2.0 License - see the [LICENSE](LICE
 - [Nostr Protocol](https://github.com/nostr-protocol/nostr)
 - [NIP-01 Specification](https://github.com/nostr-protocol/nips/blob/master/01.md)
 - [Raku Language](https://raku.org/)
-
-## Acknowledgments
-
-- The Nostr protocol community
-- The Raku community
-- Contributors to libsecp256k1
