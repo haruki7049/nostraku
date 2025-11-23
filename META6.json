@@ -9,11 +9,15 @@
     "haruki7049"
   ],
   "build-depends": [],
-  "depends": [],
+  "depends": [
+    "JSON::Fast",
+    "Digest::SHA"
+  ],
   "test-depends": [],
   "perl": "6.d",
   "provides": {
-    "Net::Nostr::Event": "lib/Net/Nostr/Event.rakumod"
+    "Net::Nostr::Event": "lib/Net/Nostr/Event.rakumod",
+    "Net::Nostr::Signer": "lib/Net/Nostr/Signer.rakumod"
   },
   "resources": [],
   "tags": []

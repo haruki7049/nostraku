@@ -1,0 +1,86 @@
+use v6.d;
+use Test;
+use lib 'lib';
+
+use Net::Nostr::Event;
+use Net::Nostr::Signer;
+
+plan 4;
+
+subtest 'Event ID Calculation' => {
+    # Test vector from NIP-01 or generated valid event
+    my $known-pubkey = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320";
+    my $created-at   = 1672531200; # 2023-01-01 00:00:00 UTC
+    my $kind         = 1;
+    my $content      = "Hello Nostr";
+    my $tags         = [];
+
+    my $event = Net::Nostr::Event.new(
+        pubkey     => $known-pubkey,
+        created_at => $created-at,
+        kind       => $kind,
+        tags       => $tags,
+        content    => $content,
+    );
+
+    # Expected Serialization: [0,"<pubkey>",1672531200,1,[],"Hello Nostr"]
+    # We check if the ID matches the SHA256 of that string.
+    
+    my $id = $event.calculate-id();
+    
+    ok $id ~~ /^ <[a..f0..9]> ** 64 $/, "ID format is valid hex (64 chars)";
+    
+    # Verify consistency
+    $event.id = $id;
+    ok $event.verify-id(), "verify-id returns true for calculated ID";
+};
+
+subtest 'Signer Integration' => {
+    # Check if we can load the library and sign
+    my $signer;
+    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (loads libsecp256k1)";
+
+    if $signer {
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5"; # Dummy ID
+
+        my $sig;
+        lives-ok { $sig = $signer.sign($msg-hex, $priv-hex) }, "Signing execution";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+subtest 'JSON Serialization' => {
+    my $event = Net::Nostr::Event.new(
+        pubkey     => "0000000000000000000000000000000000000000000000000000000000000001",
+        created_at => 1000,
+        kind       => 1,
+        content    => "test",
+        tags       => [],
+    );
+    $event.id = $event.calculate-id();
+    $event.sig = "dummy_sig";
+
+    my $json = $event.to-json();
+    ok $json.contains('"sig":"dummy_sig"'), "JSON output contains signature field";
+    ok $json.contains('"content":"test"'), "JSON output contains content";
+};
+
+# Sanity check for Canonical JSON (no whitespace in serialize-for-id)
+subtest 'Canonical JSON' => {
+    my $event = Net::Nostr::Event.new(
+        pubkey     => "abc",
+        created_at => 123,
+        kind       => 1,
+        content    => " c ",
+        tags       => [],
+    );
+    my $serialized = $event.serialize-for-id();
+    
+    # Should not contain spaces after commas (default JSON::Fast might add them if not configured right)
+    nok $serialized.contains(', '), "Serialized data has no spaces after commas";
+    nok $serialized.contains(': '), "Serialized data has no spaces after colons";
+};
+
+done-testing;
