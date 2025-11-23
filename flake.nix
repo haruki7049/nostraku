@@ -45,13 +45,17 @@
           };
 
           devShells.default = pkgs.mkShell {
-            packages = [
+            nativeBuildInputs = [
               # Compiler
               pkgs.rakudo
               pkgs.zef
 
               # LSP
               pkgs.nil
+            ];
+
+            buildInputs = [
+              pkgs.secp256k1
             ];
           };
         };
