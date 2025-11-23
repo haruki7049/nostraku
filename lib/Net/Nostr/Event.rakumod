@@ -50,5 +50,5 @@ method to-json() returns Str {
         content    => $!content,
         sig        => $!sig;
 
-    return to-json(%payload);
+    return to-json(%payload, :!pretty);
 }
