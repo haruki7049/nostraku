@@ -9,3 +9,6 @@ my subset HexSignature of Str is export where * ~~ /^ <[0..9a..f]> ** 128 $/;
 
 #| Unix Timestamp (non-negative integer)
 my subset Timestamp of Int is export where * >= 0;
+
+#| Event Kind (non-negative integer)
+my subset Kind of Int is export where * >= 0;
