@@ -94,6 +94,10 @@ unit module Net::Nostr::Types;
 #| Validates that the string consists of exactly 64 lowercase hex digits
 my subset HexKey of Str is export where * ~~ /^ <[0..9a..f]> ** 64 $/;
 
+my subset Bech32Key of Str is export where * ~~ /^ <[a..z]>+ '1' <[a..z0..9]>+ $/;
+
+my subset Key of Str is export where HexKey | Bech32Key;
+
 #| 64-byte hex-encoded string (128 characters) - for Signatures
 my subset HexSignature of Str is export where * ~~ /^ <[0..9a..f]> ** 128 $/;
 
