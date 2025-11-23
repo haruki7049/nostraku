@@ -2,7 +2,7 @@ use v6.d;
 
 use Net::Nostr::Types;
 
-#| Demonstrates the usage of Key type from Net::Nostr::Types
+#| Demonstrates the usage of Key type from 'Net::Nostr::Types'.
 #| The Key type accepts both HexKey (64 hex chars) and Bech32Key formats
 
 sub MAIN() {
