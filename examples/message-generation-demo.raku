@@ -1,3 +1,5 @@
+use v6.d;
+
 use Net::Nostr::Message;
 use Net::Nostr::Event;
 use Net::Nostr::Signer;
