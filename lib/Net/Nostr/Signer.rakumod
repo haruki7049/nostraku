@@ -38,9 +38,15 @@ submethod BUILD {
 
 #| Convert Hex string to CArray[uint8]
 method hex-to-carray(Str $hex --> CArray[uint8]) {
-    my $blob = Blob.from-hex($hex);
+    my $blob = Blob.new: $hex.comb(2).map(*.parse-base(16));
     my $arr = CArray[uint8].new;
-    for $blob.list -> $byte { $arr.push: $byte }
+
+    my $i = 0;
+    for $blob.list -> $byte {
+        $arr[$i] = $byte;
+        $i += 1;
+    }
+
     return $arr;
 }
 
