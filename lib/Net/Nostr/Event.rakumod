@@ -2,14 +2,15 @@ unit class Net::Nostr::Event;
 
 use JSON::Fast;
 use Digest::SHA;
+use Net::Nostr::Types;
 
-has Str $.id is rw;
-has Str $.pubkey is required;
+has HexKey $.id is rw;
+has HexKey $.pubkey is required;
 has Int $.created_at is required = now.Int;
 has Int $.kind is required;
 has Array $.tags is required = [];
 has Str $.content is required = "";
-has Str $.sig is rw;
+has HexKey $.sig is rw;
 
 #| Serialize the event data according to NIP-01 for ID generation and signing
 #| Format: [0, <pubkey>, <created_at>, <kind>, <tags>, <content>]

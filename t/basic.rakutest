@@ -60,17 +60,21 @@ subtest 'JSON Serialization' => {
         tags       => [],
     );
     $event.id = $event.calculate-id();
-    $event.sig = "dummy_sig";
+
+    my $dummy-sig = "a" x 64;
+    $event.sig = $dummy-sig;
 
     my $json = $event.to-json();
-    ok $json.contains('"sig":"dummy_sig"'), "JSON output contains signature field";
+    ok $json.contains('"sig":"' ~ $dummy-sig ~ '"'), "JSON output contains signature field";
     ok $json.contains('"content":"test"'), "JSON output contains content";
 };
 
 # Sanity check for Canonical JSON (no whitespace in serialize-for-id)
 subtest 'Canonical JSON' => {
+    my $pubkey = "a" x 64;
+
     my $event = Net::Nostr::Event.new(
-        pubkey     => "abc",
+        pubkey     => $pubkey,
         created_at => 123,
         kind       => 1,
         content    => " c ",
