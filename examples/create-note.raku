@@ -28,6 +28,7 @@ sub MAIN(
     note "Signing event...";
     my $signer = Net::Nostr::Signer.new;
     $event.sig = $signer.sign($event.id, $privkey);
+    say ""; # Creates a line-break
 
     # 4. Output JSON
     # This JSON string is ready to be sent to a Relay via WebSocket
