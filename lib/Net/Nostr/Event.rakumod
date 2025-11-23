@@ -30,7 +30,8 @@ method serialize-for-id() returns Str {
 #| Calculate the SHA256 hash of the serialized event (The Event ID)
 method calculate-id() returns Str {
     my $serialized = self.serialize-for-id();
-    return sha256-hex($serialized);
+    # sha256 returns a Blob, convert to hex string manually to be safe
+    return sha256($serialized.encode).list.fmt('%02x', '');
 }
 
 #| Verify if the current ID matches the content
