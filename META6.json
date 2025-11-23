@@ -4,21 +4,17 @@
   "license": "Artistic-2.0",
   "description": "A Nostr data types for raku-lang",
   "source-url": "https://github.com/haruki7049/rakudo-grep-cli",
-
   "auth": "github:haruki7049",
   "authors": [
     "haruki7049"
   ],
-
   "build-depends": [],
   "depends": [],
   "test-depends": [],
-
   "perl": "6.d",
   "provides": {
     "Net::Nostr::Event": "lib/Net/Nostr/Event.rakumod"
   },
-
   "resources": [],
   "tags": []
 }
