@@ -1,0 +1,61 @@
+use v6.d;
+use Test;
+use lib 'lib';
+
+use Net::Nostr::Event;
+use Net::Nostr::Message;
+use Net::Nostr::Signer;
+
+plan 3;
+
+my $privkey = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+my $pubkey  = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320";
+
+subtest 'EVENT Message' => {
+    my $event = Net::Nostr::Event.new(
+        pubkey     => $pubkey,
+        created_at => 1000,
+        kind       => 1,
+        content    => "hello",
+        tags       => [],
+    );
+    $event.id = $event.calculate-id();
+    my $signer = Net::Nostr::Signer.new;
+    $event.sig = $signer.sign($event.id, $privkey);
+
+    my $msg = Net::Nostr::Message.new-event($event);
+    my $json = $msg.to-json;
+
+    ok $json.starts-with('["EVENT",{'), "JSON starts with ['EVENT', \{";
+    ok $json.contains('"id":"' ~ $event.id ~ '"'), "Contains Event ID";
+    ok $json.contains('"content":"hello"'), "Contains Content";
+    ok $json.contains('"sig":"' ~ $event.sig ~ '"'), "Contains Signature";
+};
+
+subtest 'REQ Message' => {
+    my $sub-id = "test-sub-1";
+    my $filters = [
+        { kinds => [1], limit => 5 },
+        { authors => [$pubkey] }
+    ];
+
+    my $msg = Net::Nostr::Message.new-req($sub-id, $filters);
+    my $json = $msg.to-json;
+
+    # ["REQ", "sub-id", {filter1}, {filter2}]
+    ok $json.starts-with('["REQ","test-sub-1",'), "JSON starts with ['REQ', 'sub-id'";
+    ok $json.contains('"kinds":[1]'), "Contains filter criteria (kinds)";
+    ok $json.contains('"limit":5'), "Contains filter criteria (limit)";
+    ok $json.contains('"authors":["' ~ $pubkey ~ '"]'), "Contains filter criteria (authors)";
+};
+
+subtest 'CLOSE Message' => {
+    my $sub-id = "test-sub-1";
+    my $msg = Net::Nostr::Message.new-close($sub-id);
+    my $json = $msg.to-json;
+
+    # ["CLOSE", "sub-id"]
+    is $json, '["CLOSE","test-sub-1"]', "CLOSE message JSON matches exactly";
+};
+
+done-testing;

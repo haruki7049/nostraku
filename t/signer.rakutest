@@ -1,0 +1,23 @@
+use v6.d;
+use Test;
+use lib 'lib';
+
+use Net::Nostr::Signer;
+
+subtest 'Signer Integration' => {
+    # Check if we can load the library and sign
+    my $signer;
+    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (loads libsecp256k1)";
+
+    if $signer {
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5";
+
+        my $sig;
+        lives-ok { $sig = $signer.sign($msg-hex, $priv-hex) }, "Signing execution";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+done-testing;
