@@ -122,7 +122,8 @@ unit module Net::Nostr::Types;
 my subset HexKey of Str is export where * ~~ /^ <[0..9a..f]> ** 64 $/;
 
 #| Subset for Bech32-encoded key string
-#| Validates that the string follows the Bech32 format with lowercase letters, followed by '1', and alphanumeric characters
+#| Validates that the string follows the Bech32 format with lowercase letters,
+#| followed by '1', and alphanumeric characters
 my subset Bech32Key of Str is export where * ~~ /^ <[a..z]>+ '1' <[a..z0..9]>+ $/;
 
 #| Subset that accepts either HexKey or Bech32Key format
