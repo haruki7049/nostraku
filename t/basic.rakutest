@@ -5,8 +5,6 @@ use lib 'lib';
 use Net::Nostr::Event;
 use Net::Nostr::Signer;
 
-plan 4;
-
 subtest 'Event ID Calculation' => {
     # Test vector from NIP-01 or generated valid event
     my $known-pubkey = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320";
