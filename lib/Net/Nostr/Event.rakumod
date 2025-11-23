@@ -8,7 +8,7 @@ has HexKey $.id is rw;
 has HexKey $.pubkey is required;
 has Timestamp $.created_at is required = now.Int;
 has Kind $.kind is required;
-has Array $.tags is required = [];
+has Tags $.tags is required = [];
 has Str $.content is required = "";
 has HexSignature $.sig is rw;
 

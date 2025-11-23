@@ -12,3 +12,11 @@ my subset Timestamp of Int is export where * >= 0;
 
 #| Event Kind (non-negative integer)
 my subset Kind of Int is export where * >= 0;
+
+#| A single tag is a list of strings (e.g. ["e", "event_id"])
+#| Validates that it is an Array and all elements are Strings
+my subset Tag of Array is export where { .all ~~ Str };
+
+#| List of tags (e.g. [ ["e", "..."], ["p", "..."] ])
+#| Validates that it is an Array and all elements are Tags
+my subset Tags of Array is export where { .all ~~ Tag };

@@ -87,4 +87,37 @@ subtest 'Canonical JSON' => {
     nok $serialized.contains(': '), "Serialized data has no spaces after colons";
 };
 
+# Invalid Tags Check
+subtest 'Type Constraints' => {
+    dies-ok {
+        Net::Nostr::Event.new(
+            pubkey => "a" x 64, kind => 1,
+            created_at => 123,
+            kind => 1,
+            content => " c ",
+            tags => ["Not an array of arrays"]
+        )
+    }, "Flat array in tags throws type error";
+
+    dies-ok {
+        Net::Nostr::Event.new(
+            pubkey => "a" x 64, kind => 1,
+            created_at => 123,
+            kind => 1,
+            content => " c ",
+            tags => [ [123] ]
+        )
+    }, "Number in tag throws type error";
+
+    lives-ok {
+        Net::Nostr::Event.new(
+            pubkey => "a" x 64, kind => 1,
+            created_at => 123,
+            kind => 1,
+            content => " c ",
+            tags => [ ["e", "some_id"], ["p", "some_pubkey"] ]
+        )
+    }, "Valid tags structure is accepted";
+};
+
 done-testing;
