@@ -40,16 +40,20 @@ method verify-id() returns Bool {
     return self.calculate-id() eq $!id;
 }
 
-#| Convert the whole object to JSON for transmission
-method to-json() returns Str {
-    my %payload =
+#| Return the event as a Hash (for embedding in protocol messages)
+method to-hash() returns Hash {
+    return %(
         id         => $!id,
         pubkey     => $!pubkey,
         created_at => $!created_at,
         kind       => $!kind,
         tags       => $!tags,
         content    => $!content,
-        sig        => $!sig;
+        sig        => $!sig,
+    );
+}
 
-    return to-json(%payload, :!pretty);
+#| Convert the whole object to JSON for transmission
+method to-json() returns Str {
+    return to-json(self.to-hash, :!pretty);
 }
