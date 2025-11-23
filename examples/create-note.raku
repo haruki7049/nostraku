@@ -2,6 +2,7 @@ use v6.d;
 
 use Net::Nostr::Event;
 use Net::Nostr::Signer;
+use Net::Nostr::Types;
 
 #| Generate a signed Nostr text note (Kind 1)
 sub MAIN(
@@ -9,10 +10,10 @@ sub MAIN(
     Str $content = "Hello Nostr from Raku!",
 
     #| Private key (Hex)
-    :$privkey where * ~~ /^ <[0..9a..f]> ** 64 $/ = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144",
+    HexKey :$privkey where * ~~ /^ <[0..9a..f]> ** 64 $/ = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144",
 
     #| Public key (Hex)
-    :$pubkey  where * ~~ /^ <[0..9a..f]> ** 64 $/ = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320",
+    HexKey :$pubkey  where * ~~ /^ <[0..9a..f]> ** 64 $/ = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320",
 ) {
     note "Creating event with content: '$content'";
 
