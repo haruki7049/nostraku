@@ -22,7 +22,7 @@
       ];
 
       perSystem =
-        { pkgs, ... }:
+        { pkgs, lib, ... }:
         {
           treefmt = {
             projectRootFile = ".git/config";
@@ -44,7 +44,7 @@
             programs.shfmt.enable = true;
           };
 
-          devShells.default = pkgs.mkShell {
+          devShells.default = pkgs.mkShell rec {
             nativeBuildInputs = [
               # Compiler
               pkgs.rakudo
@@ -57,6 +57,11 @@
             buildInputs = [
               pkgs.secp256k1
             ];
+
+            env = {
+              LD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+              DYLD_LIBRARY_PATH = lib.makeLibraryPath buildInputs;
+            };
           };
         };
     };
