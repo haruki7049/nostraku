@@ -61,7 +61,7 @@ subtest 'JSON Serialization' => {
     );
     $event.id = $event.calculate-id();
 
-    my $dummy-sig = "a" x 64;
+    my $dummy-sig = "a" x 128;
     $event.sig = $dummy-sig;
 
     my $json = $event.to-json();

@@ -10,7 +10,7 @@ has Int $.created_at is required = now.Int;
 has Int $.kind is required;
 has Array $.tags is required = [];
 has Str $.content is required = "";
-has HexKey $.sig is rw;
+has HexSignature $.sig is rw;
 
 #| Serialize the event data according to NIP-01 for ID generation and signing
 #| Format: [0, <pubkey>, <created_at>, <kind>, <tags>, <content>]
