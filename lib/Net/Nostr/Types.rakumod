@@ -12,6 +12,13 @@ use Net::Nostr::Types;
 # HexKey - 64 character hex string (32 bytes)
 my HexKey $pubkey = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320";
 
+# Bech32Key - Bech32-encoded key string (e.g., npub, nsec)
+my Bech32Key $bech32-pubkey = "npub1l2vyh47mk2x0yd54r82frvx8v6u0jvwdkq3h9y4xew8t0p7znp5qx2r9yf";
+
+# Key - Accepts either HexKey or Bech32Key
+my Key $hex-key = "f835d6d00f7797af40240748916f2c9e6df861608669072032df0389e26d8320";
+my Key $bech32-key = "npub1l2vyh47mk2x0yd54r82frvx8v6u0jvwdkq3h9y4xew8t0p7znp5qx2r9yf";
+
 # HexSignature - 128 character hex string (64 bytes)
 my HexSignature $sig = "a" x 128;
 
@@ -51,6 +58,26 @@ A subset of Str that represents a 64-byte hex-encoded string (128 characters).
 Used for Schnorr signatures in Nostr events.
 
 Validates that the string consists of exactly 128 lowercase hexadecimal digits (0-9, a-f).
+
+=head2 Bech32Key
+
+A subset of Str that represents a Bech32-encoded key string.
+Bech32 is an encoding format used in various cryptocurrencies and protocols.
+In Nostr, it's commonly used for encoding public keys and other identifiers
+in a human-readable format (e.g., npub, nsec prefixes).
+
+Validates that the string follows the Bech32 format: lowercase letters,
+followed by the separator '1', followed by alphanumeric characters.
+
+=head2 Key
+
+A subset of Str that accepts either HexKey or Bech32Key format.
+This provides flexible key validation, allowing applications to work with
+both hex-encoded keys (64 character hex strings) and Bech32-encoded keys
+(human-readable format with prefixes like npub, nsec).
+
+This is useful when accepting user input or working with different key
+representations in the Nostr protocol.
 
 =head2 Timestamp
 
@@ -94,8 +121,12 @@ unit module Net::Nostr::Types;
 #| Validates that the string consists of exactly 64 lowercase hex digits
 my subset HexKey of Str is export where * ~~ /^ <[0..9a..f]> ** 64 $/;
 
+#| Subset for Bech32-encoded key string
+#| Validates that the string follows the Bech32 format with lowercase letters, followed by '1', and alphanumeric characters
 my subset Bech32Key of Str is export where * ~~ /^ <[a..z]>+ '1' <[a..z0..9]>+ $/;
 
+#| Subset that accepts either HexKey or Bech32Key format
+#| Provides flexible key validation for both hex-encoded and Bech32-encoded keys
 my subset Key of Str is export where HexKey | Bech32Key;
 
 #| 64-byte hex-encoded string (128 characters) - for Signatures
