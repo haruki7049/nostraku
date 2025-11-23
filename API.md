@@ -584,10 +584,10 @@ say $close-msg.to-json();
 
 ```raku
 # Invalid HexKey (too short)
-my HexKey $key = "abc";  # Dies: Type check failed
+my HexKey $key = "abc";  # Dies: Type check failed in assignment to $key
 
 # Invalid Kind (negative)
-my Kind $kind = -1;  # Dies: Type check failed
+my Kind $kind = -1;  # Dies: Type check failed in assignment to $kind
 ```
 
 #### Signing Errors
