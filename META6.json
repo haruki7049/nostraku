@@ -19,7 +19,9 @@
   "provides": {
     "Net::Nostr::Event": "lib/Net/Nostr/Event.rakumod",
     "Net::Nostr::Message": "lib/Net/Nostr/Message.rakumod",
+    "Net::Nostr::Role::Signer": "lib/Net/Nostr/Role/Signer.rakumod",
     "Net::Nostr::Signer": "lib/Net/Nostr/Signer.rakumod",
+    "Net::Nostr::Signer::OpenSSL": "lib/Net/Nostr/Signer/OpenSSL.rakumod",
     "Net::Nostr::Types": "lib/Net/Nostr/Types.rakumod"
   },
   "resources": [],
