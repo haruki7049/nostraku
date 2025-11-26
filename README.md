@@ -16,20 +16,20 @@ You need to have the following installed:
 
 - **Raku** (Rakudo) - The Raku compiler
 - **zef** - Raku module installer
-- **libsecp256k1** - For cryptographic operations
+- **OpenSSL** (libssl/libcrypto) - For cryptographic operations
 
-#### Installing libsecp256k1
+#### Installing OpenSSL
 
 **On Debian/Ubuntu:**
 
 ```bash
-sudo apt-get install libsecp256k1-dev
+sudo apt-get install libssl-dev
 ```
 
 **On macOS with Homebrew:**
 
 ```bash
-brew install libsecp256k1
+brew install openssl
 ```
 
 **On NixOS (using flake):**
@@ -122,7 +122,7 @@ Or manually install:
 
 - Raku/Rakudo
 - zef
-- libsecp256k1
+- OpenSSL (libssl-dev)
 
 ### Running tests
 

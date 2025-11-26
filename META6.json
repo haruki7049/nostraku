@@ -11,7 +11,8 @@
   "build-depends": [],
   "depends": [
     "JSON::Fast",
-    "Digest::SHA"
+    "Digest::SHA",
+    "OpenSSL"
   ],
   "test-depends": [],
   "perl": "6.d",

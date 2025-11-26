@@ -55,7 +55,7 @@
             ];
 
             buildInputs = [
-              pkgs.secp256k1
+              pkgs.openssl
             ];
 
             env = {

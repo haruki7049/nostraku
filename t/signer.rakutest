@@ -7,7 +7,7 @@ use Net::Nostr::Signer;
 subtest 'Signer Integration' => {
     # Check if we can load the library and sign
     my $signer;
-    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (loads libsecp256k1)";
+    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (loads OpenSSL)";
 
     if $signer {
         my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";

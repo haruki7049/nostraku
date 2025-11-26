@@ -35,9 +35,9 @@ say "Signature: $event.sig()";
 =head1 DESCRIPTION
 
 Net::Nostr::Signer provides Schnorr signature generation for Nostr events using
-the secp256k1 elliptic curve library via NativeCall bindings.
+the OpenSSL library for cryptographic operations on the secp256k1 elliptic curve.
 
-The Nostr protocol requires Schnorr signatures over the secp256k1 curve as
+The Nostr protocol requires BIP-340 Schnorr signatures over the secp256k1 curve as
 specified in NIP-01. This module provides a simple interface to generate these
 signatures from event IDs and private keys.
 
@@ -46,16 +46,16 @@ hardcode them in your source code or commit them to version control.
 
 =head1 REQUIREMENTS
 
-This module requires the libsecp256k1 library to be installed on your system.
+This module requires the OpenSSL library (libcrypto) to be installed on your system.
 
 On Debian/Ubuntu:
 =begin code :lang<bash>
-sudo apt-get install libsecp256k1-dev
+sudo apt-get install libssl-dev
 =end code
 
 On macOS with Homebrew:
 =begin code :lang<bash>
-brew install libsecp256k1
+brew install openssl
 =end code
 
 On NixOS (using the provided flake.nix):
@@ -65,9 +65,9 @@ nix develop
 
 =head1 ATTRIBUTES
 
-=head2 $!ctx
+=head2 $!ec-group
 
-Internal attribute storing the secp256k1 context pointer.
+Internal attribute storing the secp256k1 EC_GROUP pointer.
 Automatically initialized in the BUILD submethod.
 
 =head1 METHODS
@@ -78,24 +78,20 @@ Automatically initialized in the BUILD submethod.
 method new()
 =end code
 
-Creates a new signer instance and initializes the secp256k1 context.
-The context is created with SECP256K1_CONTEXT_NONE flag.
+Creates a new signer instance and initializes the secp256k1 EC group.
 
-=head2 hex-to-carray
+=head2 hex-to-blob
 
 =begin code :lang<raku>
-method hex-to-carray(Str $hex --> CArray[uint8])
+method hex-to-blob(Str $hex --> Blob)
 =end code
 
-Converts a hexadecimal string to a CArray[uint8] for use with native functions.
+Converts a hexadecimal string to a Blob for use with native functions.
 
 Parameters:
 =item $hex - Hexadecimal string (should have even length)
 
-Returns a CArray[uint8] containing the binary representation.
-
-This is an internal utility method used to convert hex-encoded keys and
-event IDs into the byte arrays required by the secp256k1 library.
+Returns a Blob containing the binary representation.
 
 =head2 sign
 
@@ -103,7 +99,7 @@ event IDs into the byte arrays required by the secp256k1 library.
 method sign(Str $id-hex, Str $privkey-hex --> Str)
 =end code
 
-Signs a 32-byte message hash (event ID) with a private key using Schnorr signature.
+Signs a 32-byte message hash (event ID) with a private key using BIP-340 Schnorr signature.
 
 Parameters:
 =item $id-hex - The event ID as a 64-character hex string
@@ -113,33 +109,23 @@ Returns a 128-character hex string representing the Schnorr signature.
 
 The method performs the following steps:
 =item 1. Converts hex inputs to byte arrays
-=item 2. Creates a keypair from the private key
-=item 3. Generates a Schnorr signature over the message
-=item 4. Returns the signature as a hex string
+=item 2. Computes the x-only public key from the private key
+=item 3. Generates auxiliary randomness
+=item 4. Computes tagged hash for the nonce
+=item 5. Computes the BIP-340 Schnorr signature
+=item 6. Returns the signature as a hex string
 
-Dies with an error message if keypair creation or signing fails.
+Dies with an error message if signing fails.
 
 =head1 NATIVE FUNCTIONS
 
-This module uses NativeCall to interface with libsecp256k1. The following
-native functions are bound:
-
-=head2 secp256k1_context_create
-
-Creates a secp256k1 context for cryptographic operations.
-
-=head2 secp256k1_keypair_create
-
-Creates a keypair from a 32-byte secret key.
-
-=head2 secp256k1_schnorrsig_sign32
-
-Generates a Schnorr signature for a 32-byte message.
+This module uses NativeCall to interface with OpenSSL's libcrypto. The following
+native functions are bound for elliptic curve operations on secp256k1.
 
 =head1 ERROR HANDLING
 
 The C<sign> method will die with an error message if:
-=item The keypair creation fails (invalid private key)
+=item The key operations fail
 =item The signature generation fails
 
 Ensure your private keys are valid 32-byte hex strings.
@@ -159,8 +145,9 @@ haruki7049
 
 =item L<Net::Nostr::Event> - Event representation and ID calculation
 =item L<Net::Nostr::Types> - Type definitions including HexKey and HexSignature
-=item L<https://github.com/bitcoin-core/secp256k1> - secp256k1 library
+=item L<OpenSSL> - OpenSSL Raku module
 =item L<https://github.com/nostr-protocol/nips/blob/master/01.md> - NIP-01 specification
+=item L<https://bips.xyz/340> - BIP-340 Schnorr Signatures
 
 =head1 LICENSE
 
@@ -171,81 +158,289 @@ MIT
 unit class Net::Nostr::Signer;
 
 use NativeCall;
+use OpenSSL::NativeLib;
+use OpenSSL::Digest;
 
-#| Library name (matches libsecp256k1.so or .dylib)
-constant LIB = 'secp256k1';
+# --- Constants ---
 
-constant SECP256K1_CONTEXT_NONE = 1;
+# secp256k1 curve NID
+constant NID_secp256k1 = 714;
 
-# --- NativeCall Bindings ---
+# Point conversion form for uncompressed points
+constant POINT_CONVERSION_UNCOMPRESSED = 4;
 
-sub secp256k1_context_create(int32)
+# secp256k1 curve order (n) as hex
+constant SECP256K1_ORDER_HEX = 'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141';
+
+# --- NativeCall Bindings for OpenSSL libcrypto ---
+
+sub EC_GROUP_new_by_curve_name(int32 $nid)
     returns Pointer
-    is native(LIB) { * }
+    is native(&crypto-lib) { * }
 
-sub secp256k1_keypair_create(
-    Pointer $ctx,
-    CArray[uint8] $keypair_out,
-    CArray[uint8] $seckey
-) returns int32 is native(LIB) { * }
+sub EC_GROUP_free(Pointer $group)
+    is native(&crypto-lib) { * }
 
-sub secp256k1_schnorrsig_sign32(
-    Pointer $ctx,
-    CArray[uint8] $sig64_out,
-    CArray[uint8] $msg32,
-    CArray[uint8] $keypair,
-    CArray[uint8] $aux_rand32
-) returns int32 is native(LIB) { * }
+sub EC_POINT_new(Pointer $group)
+    returns Pointer
+    is native(&crypto-lib) { * }
 
+sub EC_POINT_free(Pointer $point)
+    is native(&crypto-lib) { * }
+
+sub EC_POINT_mul(Pointer $group, Pointer $r, Pointer $n, Pointer $q, Pointer $m, Pointer $ctx)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub EC_POINT_get_affine_coordinates(Pointer $group, Pointer $p, Pointer $x, Pointer $y, Pointer $ctx)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_new()
+    returns Pointer
+    is native(&crypto-lib) { * }
+
+sub BN_free(Pointer $bn)
+    is native(&crypto-lib) { * }
+
+sub BN_CTX_new()
+    returns Pointer
+    is native(&crypto-lib) { * }
+
+sub BN_CTX_free(Pointer $ctx)
+    is native(&crypto-lib) { * }
+
+sub BN_bin2bn(Blob $s, int32 $len, Pointer $ret)
+    returns Pointer
+    is native(&crypto-lib) { * }
+
+sub BN_bn2binpad(Pointer $a, Blob $to, int32 $tolen)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_mod_add(Pointer $r, Pointer $a, Pointer $b, Pointer $m, Pointer $ctx)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_mod_mul(Pointer $r, Pointer $a, Pointer $b, Pointer $m, Pointer $ctx)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_mod_sub(Pointer $r, Pointer $a, Pointer $b, Pointer $m, Pointer $ctx)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_is_odd(Pointer $a)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub BN_copy(Pointer $a, Pointer $b)
+    returns Pointer
+    is native(&crypto-lib) { * }
+
+sub BN_hex2bn(CArray[Pointer] $a, Str $str)
+    returns int32
+    is native(&crypto-lib) { * }
+
+sub RAND_bytes(Blob $buf, int32 $num)
+    returns int32
+    is native(&crypto-lib) { * }
 
 # --- Class Logic ---
 
-has Pointer $!ctx;
+has Pointer $!ec-group;
+has Pointer $!bn-ctx;
+has Pointer $!curve-order;
 
 submethod BUILD {
-    $!ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
+    $!ec-group = EC_GROUP_new_by_curve_name(NID_secp256k1);
+    die "Failed to create EC group for secp256k1" unless $!ec-group;
+
+    $!bn-ctx = BN_CTX_new();
+    die "Failed to create BN context" unless $!bn-ctx;
+
+    # Parse curve order
+    my $order-ptr = CArray[Pointer].new;
+    $order-ptr[0] = Pointer;
+    BN_hex2bn($order-ptr, SECP256K1_ORDER_HEX);
+    $!curve-order = $order-ptr[0];
+    die "Failed to parse curve order" unless $!curve-order;
 }
 
-#| Convert Hex string to CArray[uint8]
-method hex-to-carray(Str $hex --> CArray[uint8]) {
-    my $blob = Blob.new: $hex.comb(2).map(*.parse-base(16));
-    my $arr = CArray[uint8].new;
-
-    my $i = 0;
-    for $blob.list -> $byte {
-        $arr[$i] = $byte;
-        $i += 1;
-    }
-
-    return $arr;
+submethod DESTROY {
+    BN_free($!curve-order) if $!curve-order;
+    BN_CTX_free($!bn-ctx) if $!bn-ctx;
+    EC_GROUP_free($!ec-group) if $!ec-group;
 }
 
-#| Sign a 32-byte message hash with a private key
+#| Convert Hex string to Blob
+method hex-to-blob(Str $hex --> Blob) {
+    Blob.new: $hex.comb(2).map(*.parse-base(16));
+}
+
+#| Convert Blob to hex string
+method blob-to-hex(Blob $blob --> Str) {
+    $blob.list.fmt('%02x', '');
+}
+
+#| Compute BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || data)
+method tagged-hash(Str $tag, Blob $data --> Blob) {
+    my $tag-hash = sha256($tag.encode);
+    my $preimage = Blob.new(|$tag-hash.list, |$tag-hash.list, |$data.list);
+    sha256($preimage);
+}
+
+#| Get x-only public key from private key (returns 32-byte Blob and parity)
+method get-xonly-pubkey(Blob $privkey --> List) {
+    my $priv-bn = BN_new();
+    BN_bin2bn($privkey, 32, $priv-bn);
+
+    my $pubkey-point = EC_POINT_new($!ec-group);
+    EC_POINT_mul($!ec-group, $pubkey-point, $priv-bn, Pointer, Pointer, $!bn-ctx);
+
+    my $x = BN_new();
+    my $y = BN_new();
+    EC_POINT_get_affine_coordinates($!ec-group, $pubkey-point, $x, $y, $!bn-ctx);
+
+    my $x-blob = Blob.allocate(32);
+    BN_bn2binpad($x, $x-blob, 32);
+
+    my $y-is-odd = BN_is_odd($y);
+
+    BN_free($y);
+    BN_free($x);
+    EC_POINT_free($pubkey-point);
+    BN_free($priv-bn);
+
+    ($x-blob, $y-is-odd);
+}
+
+#| Negate private key modulo curve order
+method negate-privkey(Blob $privkey --> Blob) {
+    my $priv-bn = BN_new();
+    BN_bin2bn($privkey, 32, $priv-bn);
+
+    my $neg-bn = BN_new();
+    BN_mod_sub($neg-bn, $!curve-order, $priv-bn, $!curve-order, $!bn-ctx);
+
+    my $result = Blob.allocate(32);
+    BN_bn2binpad($neg-bn, $result, 32);
+
+    BN_free($neg-bn);
+    BN_free($priv-bn);
+
+    $result;
+}
+
+#| Compute R point for Schnorr signature
+method compute-r-point(Blob $k --> List) {
+    my $k-bn = BN_new();
+    BN_bin2bn($k, 32, $k-bn);
+
+    my $r-point = EC_POINT_new($!ec-group);
+    EC_POINT_mul($!ec-group, $r-point, $k-bn, Pointer, Pointer, $!bn-ctx);
+
+    my $rx = BN_new();
+    my $ry = BN_new();
+    EC_POINT_get_affine_coordinates($!ec-group, $r-point, $rx, $ry, $!bn-ctx);
+
+    my $rx-blob = Blob.allocate(32);
+    BN_bn2binpad($rx, $rx-blob, 32);
+
+    my $ry-is-odd = BN_is_odd($ry);
+
+    BN_free($ry);
+    BN_free($rx);
+    EC_POINT_free($r-point);
+    BN_free($k-bn);
+
+    ($rx-blob, $ry-is-odd);
+}
+
+#| Sign a 32-byte message hash with a private key using BIP-340 Schnorr
 method sign(Str $id-hex, Str $privkey-hex --> Str) {
-    # 1. Prepare buffers
-    my $seckey-arr = self.hex-to-carray($privkey-hex);
-    my $msg-arr    = self.hex-to-carray($id-hex);
+    my $msg = self.hex-to-blob($id-hex);
+    my $privkey = self.hex-to-blob($privkey-hex);
 
-    my $keypair-arr = CArray[uint8].new;
-    $keypair-arr[$_] = 0 for ^96;
+    # 1. Get x-only public key
+    my ($pubkey-x, $y-is-odd) = self.get-xonly-pubkey($privkey);
 
-    my $sig-arr = CArray[uint8].new;
-    $sig-arr[$_] = 0 for ^64;
+    # 2. If y is odd, negate the private key (BIP-340 requirement)
+    my $d = $y-is-odd ?? self.negate-privkey($privkey) !! $privkey;
 
-    # 2. Create Keypair
-    my $res-kp = secp256k1_keypair_create($!ctx, $keypair-arr, $seckey-arr);
-    die "Failed to create keypair" unless $res-kp == 1;
+    # 3. Generate auxiliary randomness
+    my $aux-rand = Blob.allocate(32);
+    RAND_bytes($aux-rand, 32);
 
-    # 3. Sign (Schnorr)
-    my $res-sign = secp256k1_schnorrsig_sign32(
-        $!ctx,
-        $sig-arr,
-        $msg-arr,
-        $keypair-arr,
-        CArray[uint8] # NULL
-    );
-    die "Failed to sign" unless $res-sign == 1;
+    # 4. Compute t = d XOR tagged_hash("BIP0340/aux", aux_rand)
+    my $aux-hash = self.tagged-hash("BIP0340/aux", $aux-rand);
+    my $t = Blob.new: (^32).map: { $d[$_] +^ $aux-hash[$_] };
 
-    # 4. Return Hex
-    return Blob.new( ($sig-arr[$_] for ^64) ).list.fmt('%02x', '');
+    # 5. Compute k' = tagged_hash("BIP0340/nonce", t || pubkey_x || msg)
+    my $nonce-input = Blob.new(|$t.list, |$pubkey-x.list, |$msg.list);
+    my $k-prime-hash = self.tagged-hash("BIP0340/nonce", $nonce-input);
+
+    # 6. k' mod n (curve order)
+    my $k-prime-bn = BN_new();
+    BN_bin2bn($k-prime-hash, 32, $k-prime-bn);
+
+    my $k-bn = BN_new();
+    my $zero-bn = BN_new();
+    BN_mod_add($k-bn, $k-prime-bn, $zero-bn, $!curve-order, $!bn-ctx);
+
+    my $k-blob = Blob.allocate(32);
+    BN_bn2binpad($k-bn, $k-blob, 32);
+
+    BN_free($zero-bn);
+    BN_free($k-prime-bn);
+    BN_free($k-bn);
+
+    # Check k != 0
+    die "Failed to sign: k is zero" if $k-blob.list.all == 0;
+
+    # 7. Compute R = k * G
+    my ($r-x, $r-y-is-odd) = self.compute-r-point($k-blob);
+
+    # 8. If R.y is odd, negate k
+    my $k = $r-y-is-odd ?? self.negate-privkey($k-blob) !! $k-blob;
+
+    # 9. Compute e = tagged_hash("BIP0340/challenge", R.x || pubkey_x || msg) mod n
+    my $challenge-input = Blob.new(|$r-x.list, |$pubkey-x.list, |$msg.list);
+    my $e-hash = self.tagged-hash("BIP0340/challenge", $challenge-input);
+
+    my $e-bn = BN_new();
+    BN_bin2bn($e-hash, 32, $e-bn);
+
+    my $e-mod-bn = BN_new();
+    my $zero2-bn = BN_new();
+    BN_mod_add($e-mod-bn, $e-bn, $zero2-bn, $!curve-order, $!bn-ctx);
+
+    BN_free($zero2-bn);
+    BN_free($e-bn);
+
+    # 10. Compute s = (k + e * d) mod n
+    my $d-bn = BN_new();
+    BN_bin2bn($d, 32, $d-bn);
+
+    my $k-final-bn = BN_new();
+    BN_bin2bn($k, 32, $k-final-bn);
+
+    my $ed-bn = BN_new();
+    BN_mod_mul($ed-bn, $e-mod-bn, $d-bn, $!curve-order, $!bn-ctx);
+
+    my $s-bn = BN_new();
+    BN_mod_add($s-bn, $k-final-bn, $ed-bn, $!curve-order, $!bn-ctx);
+
+    my $s-blob = Blob.allocate(32);
+    BN_bn2binpad($s-bn, $s-blob, 32);
+
+    BN_free($s-bn);
+    BN_free($ed-bn);
+    BN_free($k-final-bn);
+    BN_free($d-bn);
+    BN_free($e-mod-bn);
+
+    # 11. Return signature (R.x || s)
+    my $sig = Blob.new(|$r-x.list, |$s-blob.list);
+    self.blob-to-hex($sig);
 }
