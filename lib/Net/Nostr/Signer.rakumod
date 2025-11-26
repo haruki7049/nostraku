@@ -57,6 +57,11 @@ hardcode them in your source code or commit them to version control.
 Uses OpenSSL's libcrypto for elliptic curve operations. Requires libssl-dev
 to be installed on the system.
 
+=head2 Libsecp256k1
+
+Uses Bitcoin Core's libsecp256k1 library which provides native BIP-340 Schnorr
+signature support. Requires libsecp256k1-dev to be installed on the system.
+
 =head1 ATTRIBUTES
 
 =head2 $.backend
@@ -78,6 +83,7 @@ Parameters:
 
 Available backends:
 =item 'OpenSSL' - Uses OpenSSL libcrypto
+=item 'Libsecp256k1' - Uses Bitcoin Core's libsecp256k1 library
 
 =head2 sign
 
@@ -120,6 +126,7 @@ haruki7049
 
 =item L<Net::Nostr::Role::Signer> - Abstract signer role interface
 =item L<Net::Nostr::Signer::OpenSSL> - OpenSSL backend implementation
+=item L<Net::Nostr::Signer::Libsecp256k1> - libsecp256k1 backend implementation
 =item L<Net::Nostr::Event> - Event representation and ID calculation
 =item L<https://github.com/nostr-protocol/nips/blob/master/01.md> - NIP-01 specification
 =item L<https://bips.xyz/340> - BIP-340 Schnorr Signatures
@@ -134,6 +141,7 @@ unit class Net::Nostr::Signer;
 
 use Net::Nostr::Role::Signer;
 use Net::Nostr::Signer::OpenSSL;
+use Net::Nostr::Signer::Libsecp256k1;
 
 #| The backend signer instance
 has Net::Nostr::Role::Signer $.backend is required;
@@ -146,12 +154,11 @@ method new(Str :$backend = 'OpenSSL') {
         when 'openssl' {
             $signer-impl = Net::Nostr::Signer::OpenSSL.new;
         }
-        # Future backends can be added here:
-        # when 'pureraku' {
-        #     $signer-impl = Net::Nostr::Signer::PureRaku.new;
-        # }
+        when 'libsecp256k1' | 'secp256k1' {
+            $signer-impl = Net::Nostr::Signer::Libsecp256k1.new;
+        }
         default {
-            die "Unknown signer backend: $backend. Available backends: OpenSSL";
+            die "Unknown signer backend: $backend. Available backends: OpenSSL, Libsecp256k1";
         }
     }
 
