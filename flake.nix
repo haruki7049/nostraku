@@ -55,6 +55,7 @@
             ];
 
             buildInputs = [
+              pkgs.openssl
               pkgs.secp256k1
             ];
 

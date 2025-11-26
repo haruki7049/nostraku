@@ -16,9 +16,25 @@ You need to have the following installed:
 
 - **Raku** (Rakudo) - The Raku compiler
 - **zef** - Raku module installer
-- **libsecp256k1** - For cryptographic operations
+- **Cryptographic library** (one of the following):
+  - **OpenSSL** (libssl/libcrypto) - Default backend for cryptographic operations
+  - **libsecp256k1** - Alternative backend (Bitcoin Core's native implementation)
 
-#### Installing libsecp256k1
+#### Installing OpenSSL
+
+**On Debian/Ubuntu:**
+
+```bash
+sudo apt-get install libssl-dev
+```
+
+**On macOS with Homebrew:**
+
+```bash
+brew install openssl
+```
+
+#### Installing libsecp256k1 (optional)
 
 **On Debian/Ubuntu:**
 
@@ -83,6 +99,23 @@ $event.sig = $signer.sign($event.id, $private-key);
 say $event.to-json();
 ```
 
+### Selecting a Signing Backend
+
+The library supports multiple cryptographic backends:
+
+```raku
+use Net::Nostr::Signer;
+
+# Default (OpenSSL backend)
+my $signer = Net::Nostr::Signer.new;
+
+# Explicit OpenSSL backend
+my $signer = Net::Nostr::Signer.new(backend => 'OpenSSL');
+
+# libsecp256k1 backend (Bitcoin Core's native implementation)
+my $signer = Net::Nostr::Signer.new(backend => 'Libsecp256k1');
+```
+
 ### Creating Protocol Messages
 
 ```raku
@@ -122,7 +155,7 @@ Or manually install:
 
 - Raku/Rakudo
 - zef
-- libsecp256k1
+- OpenSSL (libssl-dev) and/or libsecp256k1-dev
 
 ### Running tests
 

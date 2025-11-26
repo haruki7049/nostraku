@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-Net::Nostr::Signer - Schnorr signature generation for Nostr events
+Net::Nostr::Signer - Facade for Nostr event signing with pluggable backends
 
 =head1 SYNOPSIS
 
@@ -10,8 +10,11 @@ Net::Nostr::Signer - Schnorr signature generation for Nostr events
 use Net::Nostr::Signer;
 use Net::Nostr::Event;
 
-# Create a signer instance
+# Create a signer instance (uses OpenSSL backend by default)
 my $signer = Net::Nostr::Signer.new;
+
+# Or explicitly specify the backend
+my $signer = Net::Nostr::Signer.new(backend => 'OpenSSL');
 
 # Create and prepare an event
 my $event = Net::Nostr::Event.new(
@@ -34,68 +37,53 @@ say "Signature: $event.sig()";
 
 =head1 DESCRIPTION
 
-Net::Nostr::Signer provides Schnorr signature generation for Nostr events using
-the secp256k1 elliptic curve library via NativeCall bindings.
+Net::Nostr::Signer is a facade class that provides a unified interface for
+Nostr event signing with support for pluggable cryptographic backends.
 
-The Nostr protocol requires Schnorr signatures over the secp256k1 curve as
-specified in NIP-01. This module provides a simple interface to generate these
-signatures from event IDs and private keys.
+This module uses the Strategy pattern implemented with Raku roles to allow
+different signing backends to be swapped without changing user code.
+
+The Nostr protocol requires BIP-340 Schnorr signatures over the secp256k1 curve
+as specified in NIP-01. Different backends may implement this using various
+cryptographic libraries.
 
 B<SECURITY NOTE>: Private keys should be handled with extreme care. Never
 hardcode them in your source code or commit them to version control.
 
-=head1 REQUIREMENTS
+=head1 AVAILABLE BACKENDS
 
-This module requires the libsecp256k1 library to be installed on your system.
+=head2 OpenSSL (default)
 
-On Debian/Ubuntu:
-=begin code :lang<bash>
-sudo apt-get install libsecp256k1-dev
-=end code
+Uses OpenSSL's libcrypto for elliptic curve operations. Requires libssl-dev
+to be installed on the system.
 
-On macOS with Homebrew:
-=begin code :lang<bash>
-brew install libsecp256k1
-=end code
+=head2 Libsecp256k1
 
-On NixOS (using the provided flake.nix):
-=begin code :lang<bash>
-nix develop
-=end code
+Uses Bitcoin Core's libsecp256k1 library which provides native BIP-340 Schnorr
+signature support. Requires libsecp256k1-dev to be installed on the system.
 
 =head1 ATTRIBUTES
 
-=head2 $!ctx
+=head2 $.backend
 
-Internal attribute storing the secp256k1 context pointer.
-Automatically initialized in the BUILD submethod.
+The backend signer instance that implements the Net::Nostr::Role::Signer role.
 
 =head1 METHODS
 
 =head2 new
 
 =begin code :lang<raku>
-method new()
+method new(Str :$backend = 'OpenSSL')
 =end code
 
-Creates a new signer instance and initializes the secp256k1 context.
-The context is created with SECP256K1_CONTEXT_NONE flag.
-
-=head2 hex-to-carray
-
-=begin code :lang<raku>
-method hex-to-carray(Str $hex --> CArray[uint8])
-=end code
-
-Converts a hexadecimal string to a CArray[uint8] for use with native functions.
+Creates a new signer instance with the specified backend.
 
 Parameters:
-=item $hex - Hexadecimal string (should have even length)
+=item :$backend - Backend name (default: 'OpenSSL')
 
-Returns a CArray[uint8] containing the binary representation.
-
-This is an internal utility method used to convert hex-encoded keys and
-event IDs into the byte arrays required by the secp256k1 library.
+Available backends:
+=item 'OpenSSL' - Uses OpenSSL libcrypto
+=item 'Libsecp256k1' - Uses Bitcoin Core's libsecp256k1 library
 
 =head2 sign
 
@@ -103,7 +91,7 @@ event IDs into the byte arrays required by the secp256k1 library.
 method sign(Str $id-hex, Str $privkey-hex --> Str)
 =end code
 
-Signs a 32-byte message hash (event ID) with a private key using Schnorr signature.
+Signs a 32-byte message hash (event ID) with a private key.
 
 Parameters:
 =item $id-hex - The event ID as a 64-character hex string
@@ -111,45 +99,24 @@ Parameters:
 
 Returns a 128-character hex string representing the Schnorr signature.
 
-The method performs the following steps:
-=item 1. Converts hex inputs to byte arrays
-=item 2. Creates a keypair from the private key
-=item 3. Generates a Schnorr signature over the message
-=item 4. Returns the signature as a hex string
+Dies with an error message if signing fails.
 
-Dies with an error message if keypair creation or signing fails.
+=head1 EXTENDING WITH NEW BACKENDS
 
-=head1 NATIVE FUNCTIONS
+To add a new backend, create a class that implements the Net::Nostr::Role::Signer role:
 
-This module uses NativeCall to interface with libsecp256k1. The following
-native functions are bound:
+=begin code :lang<raku>
+use Net::Nostr::Role::Signer;
 
-=head2 secp256k1_context_create
+unit class Net::Nostr::Signer::MyBackend;
+also does Net::Nostr::Role::Signer;
 
-Creates a secp256k1 context for cryptographic operations.
+method sign(Str $id-hex, Str $privkey-hex --> Str) {
+    # Your implementation here
+}
+=end code
 
-=head2 secp256k1_keypair_create
-
-Creates a keypair from a 32-byte secret key.
-
-=head2 secp256k1_schnorrsig_sign32
-
-Generates a Schnorr signature for a 32-byte message.
-
-=head1 ERROR HANDLING
-
-The C<sign> method will die with an error message if:
-=item The keypair creation fails (invalid private key)
-=item The signature generation fails
-
-Ensure your private keys are valid 32-byte hex strings.
-
-=head1 SECURITY CONSIDERATIONS
-
-=item Never expose private keys in logs or error messages
-=item Store private keys securely (encrypted storage, hardware wallets, etc.)
-=item Use secure random number generators when creating private keys
-=item Consider using environment variables or secure vaults for key management
+Then update this facade class to include the new backend in the constructor.
 
 =head1 AUTHOR
 
@@ -157,10 +124,12 @@ haruki7049
 
 =head1 SEE ALSO
 
+=item L<Net::Nostr::Role::Signer> - Abstract signer role interface
+=item L<Net::Nostr::Signer::OpenSSL> - OpenSSL backend implementation
+=item L<Net::Nostr::Signer::Libsecp256k1> - libsecp256k1 backend implementation
 =item L<Net::Nostr::Event> - Event representation and ID calculation
-=item L<Net::Nostr::Types> - Type definitions including HexKey and HexSignature
-=item L<https://github.com/bitcoin-core/secp256k1> - secp256k1 library
 =item L<https://github.com/nostr-protocol/nips/blob/master/01.md> - NIP-01 specification
+=item L<https://bips.xyz/340> - BIP-340 Schnorr Signatures
 
 =head1 LICENSE
 
@@ -170,82 +139,33 @@ MIT
 
 unit class Net::Nostr::Signer;
 
-use NativeCall;
+use Net::Nostr::Role::Signer;
+use Net::Nostr::Signer::OpenSSL;
+use Net::Nostr::Signer::Libsecp256k1;
 
-#| Library name (matches libsecp256k1.so or .dylib)
-constant LIB = 'secp256k1';
+#| The backend signer instance
+has Net::Nostr::Role::Signer $.backend is required;
 
-constant SECP256K1_CONTEXT_NONE = 1;
+#| Factory method to create a signer with the specified backend
+method new(Str :$backend = 'OpenSSL') {
+    my Net::Nostr::Role::Signer $signer-impl;
 
-# --- NativeCall Bindings ---
-
-sub secp256k1_context_create(int32)
-    returns Pointer
-    is native(LIB) { * }
-
-sub secp256k1_keypair_create(
-    Pointer $ctx,
-    CArray[uint8] $keypair_out,
-    CArray[uint8] $seckey
-) returns int32 is native(LIB) { * }
-
-sub secp256k1_schnorrsig_sign32(
-    Pointer $ctx,
-    CArray[uint8] $sig64_out,
-    CArray[uint8] $msg32,
-    CArray[uint8] $keypair,
-    CArray[uint8] $aux_rand32
-) returns int32 is native(LIB) { * }
-
-
-# --- Class Logic ---
-
-has Pointer $!ctx;
-
-submethod BUILD {
-    $!ctx = secp256k1_context_create(SECP256K1_CONTEXT_NONE);
-}
-
-#| Convert Hex string to CArray[uint8]
-method hex-to-carray(Str $hex --> CArray[uint8]) {
-    my $blob = Blob.new: $hex.comb(2).map(*.parse-base(16));
-    my $arr = CArray[uint8].new;
-
-    my $i = 0;
-    for $blob.list -> $byte {
-        $arr[$i] = $byte;
-        $i += 1;
+    given $backend.lc {
+        when 'openssl' {
+            $signer-impl = Net::Nostr::Signer::OpenSSL.new;
+        }
+        when 'libsecp256k1' | 'secp256k1' {
+            $signer-impl = Net::Nostr::Signer::Libsecp256k1.new;
+        }
+        default {
+            die "Unknown signer backend: $backend. Available backends: OpenSSL, Libsecp256k1";
+        }
     }
 
-    return $arr;
+    return self.bless(:backend($signer-impl));
 }
 
-#| Sign a 32-byte message hash with a private key
+#| Delegate signing to the backend
 method sign(Str $id-hex, Str $privkey-hex --> Str) {
-    # 1. Prepare buffers
-    my $seckey-arr = self.hex-to-carray($privkey-hex);
-    my $msg-arr    = self.hex-to-carray($id-hex);
-
-    my $keypair-arr = CArray[uint8].new;
-    $keypair-arr[$_] = 0 for ^96;
-
-    my $sig-arr = CArray[uint8].new;
-    $sig-arr[$_] = 0 for ^64;
-
-    # 2. Create Keypair
-    my $res-kp = secp256k1_keypair_create($!ctx, $keypair-arr, $seckey-arr);
-    die "Failed to create keypair" unless $res-kp == 1;
-
-    # 3. Sign (Schnorr)
-    my $res-sign = secp256k1_schnorrsig_sign32(
-        $!ctx,
-        $sig-arr,
-        $msg-arr,
-        $keypair-arr,
-        CArray[uint8] # NULL
-    );
-    die "Failed to sign" unless $res-sign == 1;
-
-    # 4. Return Hex
-    return Blob.new( ($sig-arr[$_] for ^64) ).list.fmt('%02x', '');
+    return $!backend.sign($id-hex, $privkey-hex);
 }

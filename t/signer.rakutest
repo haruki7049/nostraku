@@ -3,11 +3,14 @@ use Test;
 use lib 'lib';
 
 use Net::Nostr::Signer;
+use Net::Nostr::Signer::OpenSSL;
+use Net::Nostr::Signer::Libsecp256k1;
+use Net::Nostr::Role::Signer;
 
-subtest 'Signer Integration' => {
-    # Check if we can load the library and sign
+subtest 'Signer Integration (default backend)' => {
+    # Check if we can load the library and sign with default backend
     my $signer;
-    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (loads libsecp256k1)";
+    lives-ok { $signer = Net::Nostr::Signer.new }, "Signer instantiation (default OpenSSL backend)";
 
     if $signer {
         my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
@@ -18,6 +21,79 @@ subtest 'Signer Integration' => {
         
         ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
     }
+};
+
+subtest 'Signer Integration (explicit OpenSSL backend)' => {
+    # Check explicit backend selection
+    my $signer;
+    lives-ok { $signer = Net::Nostr::Signer.new(backend => 'OpenSSL') }, "Signer instantiation (explicit OpenSSL)";
+
+    if $signer {
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5";
+
+        my $sig;
+        lives-ok { $sig = $signer.sign($msg-hex, $priv-hex) }, "Signing execution";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+subtest 'Signer Integration (Libsecp256k1 backend)' => {
+    # Check libsecp256k1 backend selection
+    my $signer;
+    lives-ok { $signer = Net::Nostr::Signer.new(backend => 'Libsecp256k1') }, "Signer instantiation (Libsecp256k1)";
+
+    if $signer {
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5";
+
+        my $sig;
+        lives-ok { $sig = $signer.sign($msg-hex, $priv-hex) }, "Signing execution";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+subtest 'OpenSSL Backend Direct' => {
+    # Test direct OpenSSL backend usage
+    my $backend;
+    lives-ok { $backend = Net::Nostr::Signer::OpenSSL.new }, "OpenSSL backend instantiation";
+
+    if $backend {
+        ok $backend ~~ Net::Nostr::Role::Signer, "Backend implements Signer role";
+
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5";
+
+        my $sig;
+        lives-ok { $sig = $backend.sign($msg-hex, $priv-hex) }, "Direct backend signing";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+subtest 'Libsecp256k1 Backend Direct' => {
+    # Test direct Libsecp256k1 backend usage
+    my $backend;
+    lives-ok { $backend = Net::Nostr::Signer::Libsecp256k1.new }, "Libsecp256k1 backend instantiation";
+
+    if $backend {
+        ok $backend ~~ Net::Nostr::Role::Signer, "Backend implements Signer role";
+
+        my $priv-hex = "ce7a8c7348a127d1e31275d1527c985256260408f84635422844d32d69026144";
+        my $msg-hex  = "48c0d4463179d1e8c561183298246f98031b681001276c5799096f8e777d92c5";
+
+        my $sig;
+        lives-ok { $sig = $backend.sign($msg-hex, $priv-hex) }, "Direct backend signing";
+        
+        ok $sig ~~ /^ <[a..f0..9]> ** 128 $/, "Signature is 64 bytes hex (128 chars)";
+    }
+};
+
+subtest 'Unknown Backend' => {
+    # Test that unknown backend throws error
+    dies-ok { Net::Nostr::Signer.new(backend => 'Unknown') }, "Unknown backend throws error";
 };
 
 done-testing;
