@@ -52,6 +52,7 @@ haruki7049
 
 =item L<Net::Nostr::Signer> - Facade class for backend selection
 =item L<Net::Nostr::Signer::OpenSSL> - OpenSSL backend implementation
+=item L<Net::Nostr::Signer::Libsecp256k1> - libsecp256k1 backend implementation
 
 =head1 LICENSE
 
