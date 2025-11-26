@@ -259,9 +259,9 @@ submethod BUILD {
     $!bn-ctx = BN_CTX_new();
     die "Failed to create BN context" unless $!bn-ctx;
 
-    # Parse curve order
+    # Parse curve order - BN_hex2bn expects a pointer to pointer for output
     my $order-ptr = CArray[Pointer].new;
-    $order-ptr[0] = Pointer;
+    $order-ptr[0] = Pointer;  # Initialize as null pointer
     BN_hex2bn($order-ptr, SECP256K1_ORDER_HEX);
     $!curve-order = $order-ptr[0];
     die "Failed to parse curve order" unless $!curve-order;
@@ -357,6 +357,30 @@ method compute-r-point(Blob $k --> List) {
     ($rx-blob, $ry-is-odd);
 }
 
+#| Reduce a BIGNUM modulo curve order and return as Blob
+#| BN_mod_add(r, a, 0, n) computes r = a mod n (using 0 as addend)
+method bn-mod-reduce(Pointer $bn --> Blob) {
+    my $reduced-bn = BN_new();
+    my $addend-bn = BN_new();  # Initialized to 0 by BN_new
+    BN_mod_add($reduced-bn, $bn, $addend-bn, $!curve-order, $!bn-ctx);
+
+    my $result = Blob.allocate(32);
+    BN_bn2binpad($reduced-bn, $result, 32);
+
+    BN_free($addend-bn);
+    BN_free($reduced-bn);
+
+    $result;
+}
+
+#| Check if a Blob is all zeros
+method is-zero-blob(Blob $blob --> Bool) {
+    for $blob.list -> $byte {
+        return False if $byte != 0;
+    }
+    True;
+}
+
 #| Sign a 32-byte message hash with a private key using BIP-340 Schnorr
 method sign(Str $id-hex, Str $privkey-hex --> Str) {
     my $msg = self.hex-to-blob($id-hex);
@@ -380,23 +404,14 @@ method sign(Str $id-hex, Str $privkey-hex --> Str) {
     my $nonce-input = Blob.new(|$t.list, |$pubkey-x.list, |$msg.list);
     my $k-prime-hash = self.tagged-hash("BIP0340/nonce", $nonce-input);
 
-    # 6. k' mod n (curve order)
+    # 6. k' mod n (curve order) - using helper method
     my $k-prime-bn = BN_new();
     BN_bin2bn($k-prime-hash, 32, $k-prime-bn);
-
-    my $k-bn = BN_new();
-    my $zero-bn = BN_new();
-    BN_mod_add($k-bn, $k-prime-bn, $zero-bn, $!curve-order, $!bn-ctx);
-
-    my $k-blob = Blob.allocate(32);
-    BN_bn2binpad($k-bn, $k-blob, 32);
-
-    BN_free($zero-bn);
+    my $k-blob = self.bn-mod-reduce($k-prime-bn);
     BN_free($k-prime-bn);
-    BN_free($k-bn);
 
     # Check k != 0
-    die "Failed to sign: k is zero" if $k-blob.list.all == 0;
+    die "Failed to sign: k is zero" if self.is-zero-blob($k-blob);
 
     # 7. Compute R = k * G
     my ($r-x, $r-y-is-odd) = self.compute-r-point($k-blob);
@@ -410,12 +425,7 @@ method sign(Str $id-hex, Str $privkey-hex --> Str) {
 
     my $e-bn = BN_new();
     BN_bin2bn($e-hash, 32, $e-bn);
-
-    my $e-mod-bn = BN_new();
-    my $zero2-bn = BN_new();
-    BN_mod_add($e-mod-bn, $e-bn, $zero2-bn, $!curve-order, $!bn-ctx);
-
-    BN_free($zero2-bn);
+    my $e-blob = self.bn-mod-reduce($e-bn);
     BN_free($e-bn);
 
     # 10. Compute s = (k + e * d) mod n
@@ -424,6 +434,9 @@ method sign(Str $id-hex, Str $privkey-hex --> Str) {
 
     my $k-final-bn = BN_new();
     BN_bin2bn($k, 32, $k-final-bn);
+
+    my $e-mod-bn = BN_new();
+    BN_bin2bn($e-blob, 32, $e-mod-bn);
 
     my $ed-bn = BN_new();
     BN_mod_mul($ed-bn, $e-mod-bn, $d-bn, $!curve-order, $!bn-ctx);
