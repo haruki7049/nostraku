@@ -1,7 +1,7 @@
 {
   "name": "nostraku",
   "version": "0.1.0",
-  "license": "Artistic-2.0",
+  "license": "MIT",
   "description": "A Nostr protocol implementation for Raku",
   "source-url": "https://github.com/haruki7049/nostraku",
   "auth": "github:haruki7049",
